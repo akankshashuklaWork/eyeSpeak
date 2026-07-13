@@ -6,9 +6,9 @@
 // so routes.js doesn't need to change.
 
 import { getPreferredPhrases, recordInteraction } from './memory.js';
-import { generateSentence } from './ai.js';
+import { generateSuggestions } from './ai.js';
 
-export async function runPipeline({ category, patientId }) {
+export async function runPipeline({ category, context, language, patientId }) {
   // Vision Agent: the category has already been resolved client-side by
   // eye-gaze dwell selection (Person 1). This step just validates it.
   const visionResult = { category };
@@ -16,11 +16,16 @@ export async function runPipeline({ category, patientId }) {
   // Memory Agent: look up how this patient usually phrases this category.
   const preferredPhrases = getPreferredPhrases({ patientId, category: visionResult.category });
 
-  // Communication Agent: generate the sentence, informed by memory.
-  const sentence = await generateSentence({ category: visionResult.category, preferredPhrases });
+  // Communication Agent: generate three ranked phrases, informed by memory.
+  const { suggestions, source, model } = await generateSuggestions({
+    category: visionResult.category,
+    context,
+    preferredPhrases,
+    language,
+  });
 
   // Persist this interaction so future requests benefit from it.
-  recordInteraction({ patientId, category: visionResult.category, sentence });
+  recordInteraction({ patientId, category: visionResult.category, sentence: suggestions[0] });
 
-  return { category: visionResult.category, sentence, preferredPhrases };
+  return { category: visionResult.category, suggestions, source, model, preferredPhrases };
 }
