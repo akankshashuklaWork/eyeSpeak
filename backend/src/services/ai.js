@@ -65,7 +65,7 @@ export async function generateSuggestions({ category, context, preferredPhrases 
       body: JSON.stringify({
         model: NEBIUS_MODEL,
         temperature: 0.3,
-        max_tokens: 180,
+        max_tokens: 300,
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: buildUserPrompt({ category, context, preferredPhrases, language }) },
@@ -98,9 +98,20 @@ function extractJsonObject(content) {
   try {
     return JSON.parse(content);
   } catch {
-    const match = content.match(/\{[\s\S]*\}/);
+    // Non-greedy: some models loop and repeat the JSON block until they hit
+    // max_tokens (finish_reason: "length"), producing several JSON objects
+    // back to back. A greedy match would span all of them into one invalid
+    // blob, so grab just the first well-formed object instead.
+    const match = content.match(/\{[\s\S]*?\]\s*\}?/);
     if (!match) throw new Error('The model did not return valid JSON.');
-    return JSON.parse(match[0]);
+
+    try {
+      return JSON.parse(match[0]);
+    } catch {
+      // Truncation sometimes lands mid-token and drops the final closing
+      // brace (e.g. "...\"]" with no trailing "}"). Repair by appending one.
+      return JSON.parse(`${match[0].replace(/\}?$/, '')}}`);
+    }
   }
 }
 
