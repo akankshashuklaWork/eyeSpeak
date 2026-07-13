@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EyeSpeak AI - Caregiver Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .search-section {
+            margin-bottom: 30px;
+        }
+
+        .search-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .category-btn {
+            padding: 20px;
+            background: #f0f0f0;
+            border: 2px solid transparent;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 1em;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .category-btn:hover {
+            background: #e0e0e0;
+            transform: translateY(-2px);
+        }
+
+        .category-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 12px;
+            font-size: 1em;
+            margin-bottom: 15px;
+        }
+
+        .search-btn {
+            width: 100%;
+            padding: 15px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .search-btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        .search-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .results {
+            margin-top: 30px;
+        }
+
+        .result-card {
+            background: #f9f9f9;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .result-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .result-description {
+            color: #666;
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .result-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+
+        .result-meta-item {
+            color: #667eea;
+        }
+
+        .result-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .result-link:hover {
+            text-decoration: underline;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .error {
+            background: #fee;
+            border-left: 4px solid #f44;
+            padding: 15px;
+            border-radius: 8px;
+            color: #c33;
+            margin: 20px 0;
+        }
+
+        .emoji {
+            font-size: 1.5em;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1><span class="emoji">🩺</span>Caregiver Assistant</h1>
+        <p class="subtitle">Find resources for stroke rehabilitation and care</p>
+
+        <div class="search-section">
+            <div class="search-grid">
+                <button class="category-btn" data-category="rehabilitation">
+                    <span class="emoji">🏥</span><br>Rehabilitation
+                </button>
+                <button class="category-btn" data-category="therapy">
+                    <span class="emoji">💬</span><br>Speech Therapy
+                </button>
+                <button class="category-btn" data-category="exercises">
+                    <span class="emoji">🏃</span><br>Exercises
+                </button>
+                <button class="category-btn" data-category="healthcare">
+                    <span class="emoji">🏠</span><br>Home Care
+                </button>
+            </div>
+
+            <input type="text"
+                   class="search-input"
+                   id="locationInput"
+                   placeholder="Enter your location (optional)">
+
+            <button class="search-btn" id="searchBtn">Search Resources</button>
+        </div>
+
+        <div id="results" class="results"></div>
+    </div>
+
+    <script>
+        let selectedCategory = null;
+        const API_BASE = window.location.origin;
+
+        // Category button selection
+        document.querySelectorAll('.category-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                selectedCategory = this.dataset.category;
+            });
+        });
+
+        // Search button
+        document.getElementById('searchBtn').addEventListener('click', async () => {
+            if (!selectedCategory) {
+                showError('Please select a category first');
+                return;
+            }
+
+            const location = document.getElementById('locationInput').value;
+            const searchBtn = document.getElementById('searchBtn');
+            const resultsDiv = document.getElementById('results');
+
+            // Show loading
+            searchBtn.disabled = true;
+            searchBtn.textContent = 'Searching...';
+            resultsDiv.innerHTML = '<div class="loading">🔍 Searching for resources...</div>';
+
+            try {
+                const response = await fetch(`${API_BASE}/caregiver/search`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        query: '',
+                        category: selectedCategory,
+                        location: location || null
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Search failed');
+                }
+
+                const data = await response.json();
+                displayResults(data.results);
+
+            } catch (error) {
+                showError('Failed to search resources. Please try again.');
+                console.error(error);
+            } finally {
+                searchBtn.disabled = false;
+                searchBtn.textContent = 'Search Resources';
+            }
+        });
+
+        function displayResults(results) {
+            const resultsDiv = document.getElementById('results');
+
+            if (!results || results.length === 0) {
+                resultsDiv.innerHTML = '<div class="loading">No results found.</div>';
+                return;
+            }
+
+            resultsDiv.innerHTML = results.map(result => `
+                <div class="result-card">
+                    <div class="result-title">${escapeHtml(result.title)}</div>
+                    <div class="result-description">${escapeHtml(result.description)}</div>
+                    <div class="result-meta">
+                        ${result.url ? `<a href="${escapeHtml(result.url)}" target="_blank" class="result-link">Visit Website →</a>` : ''}
+                        ${result.contact ? `<span class="result-meta-item">📞 ${escapeHtml(result.contact)}</span>` : ''}
+                        ${result.address ? `<span class="result-meta-item">📍 ${escapeHtml(result.address)}</span>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function showError(message) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = `<div class="error">⚠️ ${escapeHtml(message)}</div>`;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
