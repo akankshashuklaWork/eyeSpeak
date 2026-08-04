@@ -1,5 +1,8 @@
 # eyeSpeak
 
+## Live Demo
+**[Click to experience and test eyeSpeak](https://52vwuru2.insforge.site/)**
+
 A stroke/paralysis patient communicates using only eye gaze. The AI understands intent,
 remembers preferences, and speaks it out loud.
 
